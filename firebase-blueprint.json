@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A single financial transaction.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer"] },
+        "amount": { "type": "number" },
+        "category": { "type": "string", "maxLength": 100 },
+        "subcategory": { "type": "string", "maxLength": 100 },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxLength": 10
+        },
+        "merchant": { "type": "string", "maxLength": 200 },
+        "paymentMethod": { "type": "string", "maxLength": 100 },
+        "note": { "type": "string", "maxLength": 1000 },
+        "receiptUrl": { "type": "string", "maxLength": 2000 },
+        "date": { "type": "string", "maxLength": 20 },
+        "source": { "type": "string", "enum": ["manual", "gmail", "receipt-scan"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "type", "amount", "category", "date", "source", "createdAt"]
+    },
+    "Bill": {
+      "title": "Bill",
+      "description": "A recurring or one-time upcoming bill.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string", "maxLength": 20 },
+        "recurrence": { "type": "string", "enum": ["none", "monthly", "yearly", "weekly"] },
+        "category": { "type": "string", "maxLength": 100 },
+        "calendarEventId": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["pending", "paid"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "name", "amount", "dueDate", "recurrence", "status", "createdAt"]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "A user's budget limit.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "period": { "type": "string", "maxLength": 50 },
+        "category": { "type": "string", "maxLength": 100 },
+        "limit": { "type": "number" },
+        "spent": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "period", "category", "limit", "spent", "createdAt"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "A financial savings goal.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "targetAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "targetDate": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "name", "targetAmount", "currentAmount", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User settings and profile.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "currency": { "type": "string", "maxLength": 10 },
+        "timezone": { "type": "string", "maxLength": 100 },
+        "dateFormat": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "currency", "timezone", "dateFormat", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "User profile document."
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "All financial transactions."
+    },
+    "/bills/{billId}": {
+      "schema": { "$ref": "Bill" },
+      "description": "All upcoming bills."
+    },
+    "/budgets/{budgetId}": {
+      "schema": { "$ref": "Budget" },
+      "description": "All user budgets."
+    },
+    "/goals/{goalId}": {
+      "schema": { "$ref": "Goal" },
+      "description": "All financial goals."
+    }
+  }
+}

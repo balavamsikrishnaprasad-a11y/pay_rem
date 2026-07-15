@@ -1,0 +1,150 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['uid', 'type', 'amount', 'category', 'date', 'source', 'createdAt']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.type in ['income', 'expense', 'transfer'] &&
+        data.amount is number &&
+        data.category is string && data.category.size() <= 100 &&
+        data.date is string && data.date.size() <= 20 &&
+        data.source in ['manual', 'gmail', 'receipt-scan', 'upi'] &&
+        (!('subcategory' in data) || (data.subcategory is string && data.subcategory.size() <= 100)) &&
+        (!('tags' in data) || (data.tags is list && data.tags.size() <= 10 && data.tags.size() > 0 && data.tags[0] is string)) &&
+        (!('merchant' in data) || (data.merchant is string && data.merchant.size() <= 200)) &&
+        (!('paymentMethod' in data) || (data.paymentMethod is string && data.paymentMethod.size() <= 100)) &&
+        (!('note' in data) || (data.note is string && data.note.size() <= 1000)) &&
+        (!('receiptUrl' in data) || (data.receiptUrl is string && data.receiptUrl.size() <= 1048487)) &&
+        (!('referenceNumber' in data) || (data.referenceNumber is string && data.referenceNumber.size() <= 100)) &&
+        (!('upiAppUsed' in data) || (data.upiAppUsed is string && data.upiAppUsed.size() <= 100)) &&
+        data.createdAt is string &&
+        (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create: if isOwner(incoming().uid) && isValidId(transactionId) && isValidTransaction(incoming());
+      allow update: if isOwner(existing().uid) && isOwner(incoming().uid) && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['type', 'amount', 'category', 'subcategory', 'tags', 'merchant', 'paymentMethod', 'note', 'receiptUrl', 'date', 'source', 'referenceNumber', 'upiAppUsed', 'updatedAt']);
+      allow delete: if isOwner(existing().uid);
+    }
+
+    function isValidBill(data) {
+      return data.keys().hasAll(['uid', 'name', 'amount', 'dueDate', 'recurrence', 'status', 'createdAt']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.amount is number &&
+        data.dueDate is string && data.dueDate.size() <= 20 &&
+        data.recurrence in ['none', 'monthly', 'yearly', 'weekly'] &&
+        data.status in ['pending', 'paid'] &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+        (!('calendarEventId' in data) || (data.calendarEventId is string && data.calendarEventId.size() <= 500)) &&
+        (!('payeeVpa' in data) || (data.payeeVpa is string && data.payeeVpa.size() <= 200)) &&
+        (!('payeeName' in data) || (data.payeeName is string && data.payeeName.size() <= 200)) &&
+        data.createdAt is string &&
+        (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    match /bills/{billId} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create: if isOwner(incoming().uid) && isValidId(billId) && isValidBill(incoming());
+      allow update: if isOwner(existing().uid) && isOwner(incoming().uid) && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'amount', 'dueDate', 'recurrence', 'category', 'calendarEventId', 'status', 'payeeVpa', 'payeeName', 'updatedAt']);
+      allow delete: if isOwner(existing().uid);
+    }
+
+    function isValidBudget(data) {
+      return data.keys().hasAll(['uid', 'period', 'category', 'limit', 'spent', 'createdAt']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.period is string && data.period.size() <= 50 &&
+        data.category is string && data.category.size() <= 100 &&
+        data.limit is number &&
+        data.spent is number &&
+        data.createdAt is string &&
+        (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    match /budgets/{budgetId} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create: if isOwner(incoming().uid) && isValidId(budgetId) && isValidBudget(incoming());
+      allow update: if isOwner(existing().uid) && isOwner(incoming().uid) && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['period', 'category', 'limit', 'spent', 'updatedAt']);
+      allow delete: if isOwner(existing().uid);
+    }
+
+    function isValidAccount(data) {
+      return data.keys().hasAll(['uid', 'type', 'name', 'balance', 'createdAt']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.type in ['bank', 'cash', 'property', 'vehicle', 'loan', 'credit_card', 'mortgage', 'personal_debt'] &&
+        data.name is string && data.name.size() <= 200 &&
+        data.balance is number &&
+        (!('lastUpdated' in data) || (data.lastUpdated is string && data.lastUpdated.size() <= 30)) &&
+        data.createdAt is string &&
+        (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    match /accounts/{accountId} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create: if isOwner(incoming().uid) && isValidId(accountId) && isValidAccount(incoming());
+      allow update: if isOwner(existing().uid) && isOwner(incoming().uid) && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['type', 'name', 'balance', 'lastUpdated', 'updatedAt']);
+      allow delete: if isOwner(existing().uid);
+    }
+
+    function isValidDocument(data) {
+      return data.keys().hasAll(['uid', 'title', 'category', 'fileUrl', 'uploadedDate', 'createdAt']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.title is string && data.title.size() <= 200 &&
+        data.category in ['receipt', 'invoice', 'tax', 'insurance', 'bank_statement', 'warranty'] &&
+        data.fileUrl is string && data.fileUrl.size() <= 1048487 &&
+        data.uploadedDate is string && data.uploadedDate.size() <= 30 &&
+        (!('linkedTransactionId' in data) || (data.linkedTransactionId is string && data.linkedTransactionId.size() <= 128)) &&
+        data.createdAt is string &&
+        (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    match /documents/{documentId} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create: if isOwner(incoming().uid) && isValidId(documentId) && isValidDocument(incoming());
+      allow update: if isOwner(existing().uid) && isOwner(incoming().uid) && incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'fileUrl', 'uploadedDate', 'linkedTransactionId', 'updatedAt']);
+      allow delete: if isOwner(existing().uid);
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'currency', 'timezone', 'dateFormat', 'createdAt']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.currency is string && data.currency.size() <= 10 &&
+        data.timezone is string && data.timezone.size() <= 100 &&
+        data.dateFormat is string && data.dateFormat.size() <= 20 &&
+        data.createdAt is string &&
+        (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == resource.data.uid;
+      allow create: if isOwner(incoming().uid) && isValidId(userId) && isValidUserProfile(incoming()) && userId == incoming().uid;
+      allow update: if isOwner(existing().uid) && isOwner(incoming().uid) && incoming().createdAt == existing().createdAt && userId == incoming().uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['currency', 'timezone', 'dateFormat', 'updatedAt']);
+    }
+  }
+}
